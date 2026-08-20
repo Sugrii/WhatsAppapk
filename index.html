@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Web Clone (Cross-Device Realtime)</title>
+    <title>WhatsApp Web Clone - Realtime & Unlimited</title>
+    
+    <!-- Firebase SDKs (v9 Compatibility Mode) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
     <style>
         :root {
             --wa-teal: #008069;
@@ -37,14 +44,15 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         body, html { height: 100%; width: 100%; background-color: #d1d7db; display: flex; justify-content: center; align-items: center; font-size: var(--font-size-base); }
 
-        .app-container { width: 100%; max-width: 1200px; height: 100vh; background: var(--wa-card-bg); color: var(--wa-text); display: flex; box-shadow: 0 6px 18px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+        .app-container { width: 100%; max-width: 1400px; height: 100vh; background: var(--wa-card-bg); color: var(--wa-text); display: flex; box-shadow: 0 6px 18px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
 
+        /* Custom Modal Overlay */
         .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 3000; padding: 16px; }
         .modal-overlay.active { display: flex; }
-        .modal-card { background: var(--wa-card-bg); color: var(--wa-text); padding: 24px; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+        .modal-card { background: var(--wa-card-bg); color: var(--wa-text); padding: 24px; border-radius: 8px; width: 100%; max-width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
         .modal-card h3 { margin-bottom: 12px; color: var(--wa-teal); }
         .modal-card p { font-size: 14px; margin-bottom: 16px; color: var(--wa-text-muted); }
-        .modal-card textarea, .modal-card input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 12px; font-size: 14px; background: var(--wa-card-bg); color: var(--wa-text); }
+        .modal-card textarea, .modal-card input, .modal-card select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 12px; font-size: 14px; background: var(--wa-card-bg); color: var(--wa-text); }
         .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
         .modal-btn { padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn-confirm { background: var(--wa-teal); color: white; }
@@ -61,6 +69,7 @@
         input:checked + .slider { background-color: var(--wa-green); }
         input:checked + .slider:before { transform: translateX(22px); }
 
+        /* Auth Screen */
         .auth-overlay { position: absolute; inset: 0; background: var(--wa-teal); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
         .auth-card { background: white; padding: 30px; border-radius: 8px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); color: #111; }
         .auth-card h2 { margin-bottom: 16px; color: var(--wa-teal); }
@@ -74,6 +83,7 @@
 
         .reg-avatar-preview { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin: 8px auto; border: 2px solid var(--wa-teal); display: block; }
 
+        /* Sidebar Left */
         .sidebar { width: 35%; border-right: 1px solid rgba(0,0,0,0.1); display: flex; flex-direction: column; background: var(--wa-card-bg); position: relative; }
         .header { height: 60px; background: var(--wa-header-bg); padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.08); }
         .user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; }
@@ -92,6 +102,7 @@
 
         .fab-add-contact { position: absolute; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: var(--wa-green); color: white; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; z-index: 10; border: none; }
 
+        /* Main Chat Window */
         .main-chat { width: 65%; display: flex; flex-direction: column; background: var(--wa-chat-bg); position: relative; }
         .chat-header { height: 60px; background: var(--wa-header-bg); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0,0,0,0.08); }
         .chat-user-info { display: flex; align-items: center; gap: 12px; }
@@ -106,7 +117,7 @@
         .message-meta { font-size: 10px; color: var(--wa-text-muted); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
         .message-status { font-weight: bold; font-size: 12px; }
         .message-status.seen { color: var(--wa-check-blue); }
-        .message img, .message video { max-width: 100%; border-radius: 6px; margin-top: 5px; }
+        .message img, .message video, .message audio { max-width: 100%; border-radius: 6px; margin-top: 5px; }
 
         .chat-footer { min-height: 62px; background: var(--wa-header-bg); padding: 10px 16px; display: flex; align-items: center; gap: 10px; border-top: 1px solid rgba(0,0,0,0.08); position: relative; }
         .chat-input { flex: 1; padding: 10px 16px; border-radius: 8px; border: none; outline: none; font-size: 15px; background: var(--wa-card-bg); color: var(--wa-text); }
@@ -122,6 +133,7 @@
         .emoji-item { font-size: 22px; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .emoji-item:hover { background: var(--wa-header-bg); }
 
+        /* Profile & Settings Drawer */
         .drawer { position: absolute; top: 0; left: 0; width: 35%; height: 100%; background: var(--wa-card-bg); z-index: 500; transform: translateX(-100%); transition: transform 0.3s ease; display: flex; flex-direction: column; }
         .drawer.open { transform: translateX(0); }
         .drawer-header { height: 108px; background: var(--wa-teal); color: white; display: flex; align-items: flex-end; padding: 20px; font-size: 19px; font-weight: 500; }
@@ -133,6 +145,7 @@
         .setting-group input[type="text"], .setting-group input[type="password"], .setting-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: var(--wa-card-bg); color: var(--wa-text); margin-top: 3px; }
         .setting-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
 
+        /* Status Viewer Modal Overlay */
         .status-overlay { position: absolute; inset: 0; background: #0b141a; z-index: 2000; display: none; flex-direction: column; color: white; }
         .status-overlay.active { display: flex; }
         .status-header { height: 60px; padding: 16px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.4); }
@@ -140,7 +153,7 @@
         .status-card-list { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; max-height: 80%; }
         .status-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: #111b21; border-radius: 8px; cursor: pointer; }
         .status-avatar { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--wa-green); object-fit: cover; }
-        .status-text-display { font-size: 22px; text-align: center; padding: 20px; background: #008069; border-radius: 12px; width: 100%; max-width: 400px; min-height: 200px; display: flex; justify-content: center; align-items: center; word-break: break-word; color: white; }
+        .status-text-display { font-size: 22px; text-align: center; padding: 20px; background: #008069; border-radius: 12px; width: 100%; max-width: 400px; min-height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center; word-break: break-word; color: white; }
         .status-media-display { max-width: 100%; max-height: 300px; border-radius: 8px; margin-bottom: 10px; }
 
         .comments-section { width: 100%; max-width: 400px; margin-top: 15px; background: #111b21; padding: 10px; border-radius: 8px; }
@@ -148,9 +161,11 @@
         .comment-item { font-size: 13px; background: #202c33; padding: 6px 10px; border-radius: 6px; word-break: break-word; }
         .comment-author { font-weight: bold; color: var(--wa-green); font-size: 11px; }
 
+        /* Search Results Area in Add Contact Modal */
         .user-search-results { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
         .search-user-card { display: flex; align-items: center; justify-content: space-between; padding: 8px; background: var(--wa-header-bg); border-radius: 6px; }
 
+        /* Call Screen Modal */
         .call-modal { position: absolute; inset: 0; background: #111b21; z-index: 2000; display: none; flex-direction: column; justify-content: space-between; padding: 40px 20px; color: white; align-items: center; }
         .call-modal.active { display: flex; }
         .video-wrapper { position: relative; width: 100%; flex: 1; display: flex; justify-content: center; align-items: center; margin: 20px 0; }
@@ -161,6 +176,9 @@
         .call-end { background: #ea4335; }
 
         .formatting-tip { font-size: 11px; color: var(--wa-text-muted); margin-bottom: 8px; }
+
+        /* Inline Media Recorders Overlay UI */
+        .recorder-box { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 6px; }
 
         @media (max-width: 768px) {
             .app-container { height: 100vh; max-width: 100%; border-radius: 0; }
@@ -183,6 +201,7 @@
 <body>
 
 <div class="app-container" id="appContainer">
+    <!-- Custom Pop-up Alert Modal -->
     <div class="modal-overlay" id="customAlertOverlay">
         <div class="modal-card">
             <h3 id="alertTitle">Notification</h3>
@@ -194,14 +213,37 @@
         </div>
     </div>
 
+    <!-- Forgot Password Modal -->
+    <div class="modal-overlay" id="forgotPassOverlay">
+        <div class="modal-card">
+            <h3>Recover Password</h3>
+            <p>Enter your account email to receive a password reset link.</p>
+            <input type="email" id="recoveryEmail" placeholder="Enter Account Email">
+            <div class="modal-buttons">
+                <button class="modal-btn btn-cancel" onclick="toggleForgotPassModal(false)">Cancel</button>
+                <button class="modal-btn btn-confirm" onclick="handlePasswordRecovery()">Send Reset Link</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Editor Modal -->
     <div class="modal-overlay" id="statusEditorOverlay">
         <div class="modal-card">
             <h3>Create Status Update</h3>
             <div class="formatting-tip">Format text: *bold*, _italic_, ~strikethrough~</div>
             <textarea id="statusInputText" rows="3" placeholder="Type a status update..."></textarea>
             
-            <label style="font-size:12px; font-weight:bold; color:var(--wa-teal); margin-bottom:4px; display:block;">Attach Media (Optional Image/Video):</label>
-            <input type="file" id="statusMediaInput" accept="image/*,video/*" style="margin-bottom:12px;">
+            <label style="font-size:12px; font-weight:bold; color:var(--wa-teal); margin-bottom:4px; display:block;">Attach Media or Record Short Video/Voice:</label>
+            <input type="file" id="statusMediaInput" accept="image/*,video/*,audio/*" style="margin-bottom:8px;">
+
+            <div class="recorder-box">
+                <div style="font-size:12px; font-weight:bold;">Record Media Status Direct:</div>
+                <div style="display:flex; gap:6px;">
+                    <button type="button" class="modal-btn btn-confirm" style="font-size:11px; padding:4px 8px;" onclick="recordStatusMedia('video')">📹 Record Video</button>
+                    <button type="button" class="modal-btn btn-confirm" style="font-size:11px; padding:4px 8px;" onclick="recordStatusMedia('audio')">🎤 Record Voice</button>
+                </div>
+                <video id="statusRecordPreview" style="display:none; width:100%; max-height:140px; margin-top:6px; border-radius:6px;" controls autoplay muted></video>
+            </div>
 
             <label style="font-size:12px; font-weight:bold; color:var(--wa-teal); margin-bottom:4px; display:block;">Background Color:</label>
             <div class="color-options">
@@ -217,10 +259,12 @@
         </div>
     </div>
 
+    <!-- Search & Add Contact Modal -->
     <div class="modal-overlay" id="addContactOverlay">
         <div class="modal-card">
             <h3>Search & Add Contact</h3>
-            <input type="text" id="contactNameInput" placeholder="Search by username..." oninput="searchUsersList(this.value)">
+            <input type="text" id="contactNameInput" placeholder="Search by username or phone..." oninput="searchUsersList(this.value)">
+            <button class="modal-btn btn-confirm" style="width:100%; margin-bottom:10px;" onclick="importDeviceContacts()">📱 Sync Device Contacts</button>
             <div class="user-search-results" id="searchResultsContainer"></div>
             <div class="modal-buttons" style="margin-top:12px;">
                 <button class="modal-btn btn-cancel" onclick="toggleAddContactModal(false)">Close</button>
@@ -228,6 +272,7 @@
         </div>
     </div>
 
+    <!-- Auth Screen -->
     <div class="auth-overlay" id="authOverlay">
         <div class="auth-card">
             <h2 id="authTitle">WhatsApp Login</h2>
@@ -243,7 +288,11 @@
                 </div>
 
                 <div class="input-group">
-                    <input type="text" id="authUsername" placeholder="Username" required>
+                    <input type="text" id="authUsername" placeholder="Username / Display Name" required>
+                </div>
+
+                <div class="input-group" id="phoneInputGroup" style="display:none;">
+                    <input type="text" id="authPhone" placeholder="Phone Number (+123456789)">
                 </div>
                 
                 <div class="input-group">
@@ -254,27 +303,45 @@
                 <button type="submit" class="auth-btn" id="authSubmitBtn">Log In</button>
             </form>
             <div class="auth-actions">
+                <span class="auth-link" id="forgotPassLink" onclick="toggleForgotPassModal(true)">Forgot Password?</span>
                 <span class="auth-link" onclick="toggleAuthMode()" id="authToggleText">Need an account? Register</span>
             </div>
         </div>
     </div>
 
+    <!-- Profile & Settings Drawer -->
     <div class="drawer" id="profileDrawer">
         <div class="drawer-header"><span style="cursor:pointer; margin-right:20px;" onclick="toggleDrawer()">←</span> Settings & Profile</div>
         <div class="drawer-body">
             <div class="profile-img-container">
                 <img src="https://via.placeholder.com/150" id="drawerProfileImg" alt="Profile">
                 <input type="file" id="profileImgInput" accept="image/*" style="display:none;" onchange="updateProfilePicture(event)">
-                <button onclick="document.getElementById('profileImgInput').click()" style="margin-top:8px; padding:4px 8px; font-size:12px;">Change Photo</button>
+                <button onclick="document.getElementById('profileImgInput').click()" style="margin-top:8px; padding:4px 8px; font-size:12px; cursor:pointer;">Change Photo</button>
             </div>
             
             <div class="setting-group">
                 <label>Your Name</label>
-                <input type="text" id="profileUsernameInput" value="User" readonly>
+                <input type="text" id="profileUsernameInput" value="User">
+                <button onclick="updateDisplayName()" style="margin-top:5px; padding:4px 8px; background:var(--wa-teal); color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">Save Name</button>
             </div>
 
             <div class="setting-group">
-                <label>1. Theme Appearance</label>
+                <label>Phone Number</label>
+                <input type="text" id="profilePhoneInput" placeholder="+1 234 567 890">
+                <button onclick="updatePhoneNumber()" style="margin-top:5px; padding:4px 8px; background:var(--wa-teal); color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">Update Phone</button>
+            </div>
+
+            <div class="setting-group">
+                <label>Security & Password</label>
+                <div class="input-group">
+                    <input type="password" id="newPasswordInput" placeholder="New Password">
+                    <button type="button" class="toggle-pass-btn" onclick="togglePasswordVisibility('newPasswordInput', this)">👁️</button>
+                </div>
+                <button onclick="updatePassword()" style="margin-top:5px; padding:6px 12px; background:var(--wa-teal); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Change Password</button>
+            </div>
+
+            <div class="setting-group">
+                <label>1. Theme & Appearance</label>
                 <div class="setting-row">
                     <span>Dark Mode</span> 
                     <label class="toggle-switch">
@@ -291,16 +358,73 @@
                     <option value="#b3cde0">Soft Blue</option>
                     <option value="#c8e6c9">Mint Green</option>
                     <option value="#f8bbd0">Dusty Rose</option>
+                    <option value="#111b21">Dark Solid</option>
                 </select>
             </div>
 
             <div class="setting-group">
-                <label>3. Account Access</label>
+                <label>3. Privacy Options</label>
+                <div class="setting-row" style="margin-bottom:6px;">
+                    <span>Read Receipts</span> 
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="readReceiptsToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <label style="margin-top:6px;">Who can see my profile photo?</label>
+                <select id="privacyPhotoSelect">
+                    <option value="everyone">Everyone</option>
+                    <option value="contacts">My Contacts</option>
+                    <option value="nobody">Nobody</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label>4. Interface Font Size</label>
+                <select onchange="changeFontSize(this.value)">
+                    <option value="12px">Small</option>
+                    <option value="14px" selected>Medium</option>
+                    <option value="16px">Large</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label>5. Notifications Settings</label>
+                <div class="setting-row">
+                    <span>Desktop Push</span> 
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notifToggle" checked onchange="toggleNotificationsSetting(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>6. Keyboard & Chat Settings</label>
+                <div class="setting-row">
+                    <span>Enter key sends message</span> 
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enterSendToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>7. Cloud Storage & Data Backup</label>
+                <div style="font-size:12px; color:var(--wa-text-muted); margin-bottom:8px;">Cloud Sync: Active (Unlimited)</div>
+                <button onclick="backupData()" style="width:100%; padding:8px; background:#f0f2f5; border:1px solid #ccc; border-radius:4px; margin-bottom:5px; cursor:pointer; color:#111;">💾 Download Local Data Backup</button>
+                <button onclick="exportChatText()" style="width:100%; padding:8px; background:#f0f2f5; border:1px solid #ccc; border-radius:4px; cursor:pointer; color:#111;">📄 Export Current Chat</button>
+            </div>
+
+            <div class="setting-group">
+                <label>8. Account Access</label>
                 <button onclick="logoutUser()" style="width:100%; padding:10px; background:#ea4335; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🚪 Log Out</button>
             </div>
         </div>
     </div>
 
+    <!-- Status Viewer Overlay -->
     <div class="status-overlay" id="statusOverlay">
         <div class="status-header">
             <h3>Status Updates</h3>
@@ -327,7 +451,7 @@
                     <img src="https://via.placeholder.com/150" id="myStatusAvatar" class="status-avatar">
                     <div>
                         <div style="font-weight:600;">My Status</div>
-                        <div style="font-size:12px; color:var(--wa-text-muted);">Click to post text, photo or video update</div>
+                        <div style="font-size:12px; color:var(--wa-text-muted);">Click to post text, photo, video or voice update</div>
                     </div>
                 </div>
                 <div style="margin-top:10px; font-size:12px; color:var(--wa-text-muted);">RECENT UPDATES</div>
@@ -336,6 +460,7 @@
         </div>
     </div>
 
+    <!-- Sidebar Left -->
     <div class="sidebar">
         <div class="header">
             <img src="https://via.placeholder.com/150" class="user-avatar" id="currentAvatar" onclick="toggleDrawer()" alt="User">
@@ -353,6 +478,7 @@
         <button class="fab-add-contact" title="Add Contact" onclick="toggleAddContactModal(true)">+</button>
     </div>
 
+    <!-- Main Chat Screen -->
     <div class="main-chat">
         <div class="chat-header">
             <div class="chat-user-info">
@@ -360,7 +486,7 @@
                 <img src="https://via.placeholder.com/150" class="user-avatar" id="activeChatAvatar">
                 <div>
                     <div id="activeChatName" style="font-weight:600;">Select a Contact</div>
-                    <div id="activeChatStatus" style="font-size:12px; color:var(--wa-text-muted);">online</div>
+                    <div id="activeChatStatus" style="font-size:12px; color:var(--wa-text-muted);">offline</div>
                 </div>
             </div>
             <div class="header-icons">
@@ -374,14 +500,15 @@
         <div class="chat-footer">
             <div class="emoji-picker-container" id="emojiPicker"></div>
             <button class="action-btn" onclick="toggleEmojiPicker()" title="Emoji">😊</button>
-            <input type="file" id="mediaInput" style="display:none;" accept="image/*,video/*" onchange="sendMedia(event)">
+            <input type="file" id="mediaInput" style="display:none;" accept="image/*,video/*,audio/*" onchange="sendMedia(event)">
             <button class="action-btn" onclick="document.getElementById('mediaInput').click()" title="Attach File">📎</button>
-            <input type="text" class="chat-input" id="messageInput" placeholder="Type a message (*bold*, _italic_, ~strike~)">
+            <input type="text" class="chat-input" id="messageInput" placeholder="Type a message (*bold*, _italic_, ~strike~)" onkeypress="handleKeyPress(event)">
             <button class="action-btn" id="micBtn" onclick="toggleRecordVoice()" title="Record Voice">🎤</button>
             <button class="send-btn" onclick="sendMessage()" title="Send Message">➔</button>
         </div>
     </div>
 
+    <!-- Live Call Screen Modal -->
     <div class="call-modal" id="callModal">
         <h3 id="callTargetName">User</h3>
         <p id="callStatusText">Calling...</p>
@@ -395,57 +522,785 @@
     </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { 
-        getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
-        signOut, onAuthStateChanged 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { 
-        getDatabase, ref, set, get, push, onValue, update, child, query, orderByChild 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+<script>
+    // =========================================================================
+    // FIREBASE INITIALIZATION (Replace values below with your Firebase Config)
+    // =========================================================================
+    const firebaseConfig = {
 
-    // REPLACE THIS WITH YOUR FIREBASE CONFIG
-   // const firebaseConfig = {
-     //   apiKey: "YOUR_API_KEY",
-     //   authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      //  databaseURL: "https://whatsappapk-adeb1-default-rtdb.firebaseio.com/",
-      //  projectId: "whatsappapk-adeb1",
-       // storageBucket: "YOUR_PROJECT_ID.appspot.com",
-       // messagingSenderId: "YOUR_SENDER_ID",
-       // appId: "YOUR_APP_ID"
-  //  };
 
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDGEySZIeqYW0JyjEdafE0w4lBZ-TXyn9s",
-  authDomain: "whatsappapk-adeb1.firebaseapp.com",
-  databaseURL: "https://whatsappapk-adeb1-default-rtdb.firebaseio.com",
-  projectId: "whatsappapk-adeb1",
-  storageBucket: "whatsappapk-adeb1.firebasestorage.app",
-  messagingSenderId: "692644380188",
-  appId: "1:692644380188:web:b40984eb4e5f13b9aae9d9",
-  measurementId: "G-1J14Q4Y005"
+  apiKey: "AIzaSyDGEySZIeqYW0JyjEdafE0w4lBZ-TXyn9s",
+
+
+  authDomain: "whatsappapk-adeb1.firebaseapp.com",
+
+
+  databaseURL: "https://whatsappapk-adeb1-default-rtdb.firebaseio.com",
+
+
+  projectId: "whatsappapk-adeb1",
+
+
+  storageBucket: "whatsappapk-adeb1.firebasestorage.app",
+
+
+  messagingSenderId: "692644380188",
+
+
+  appId: "1:692644380188:web:6ed8846fa4874e45aae9d9",
+
+
+  measurementId: "G-77BH5SLG4J"
+
+
 };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
 
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    // Application Global State Variables
     let isRegisterMode = false;
-    let currentUser = null; 
+    let currentUser = null; // Contains synced User document data
     let activeContactUsername = null;
     let activeStatusId = null;
     let mediaRecorder = null;
     let audioChunks = [];
+    let statusMediaRecorder = null;
+    let statusMediaChunks = [];
+    let recordedStatusBlob = null;
     let localStream = null;
+    let enableNotifications = true;
+    let alertCallback = null;
     let selectedStatusBg = '#008069';
-    let regAvatarBase64 = null;
+    let regAvatarFile = null;
+
     let registeredUsers = {};
     let statusList = [];
-    let currentThreadUnsubscribe = null;
+    let activeMessagesUnsubscribe = null;
+    let activeStatusesUnsubscribe = null;
 
     const emojiList = ["😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","😉","😍","🥰","😘","😋","😜","😎","🥳","😏","😔","😢","😭","😤","😠","🤯","😳","😱","😴","👍","👎","👏","🙌","🫶","🤝","🙏","❤️","🔥","🎉","✨"];
+
+    // App Initialization
+    window.onload = () => {
+        requestNotificationPermission();
+        initEmojiPicker();
+        
+        // Firebase Auth Observer for Cross-Device Persistent Logins
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                document.getElementById('authOverlay').style.display = 'none';
+                await loadAndSyncUserData(user.uid);
+                listenToGlobalUsers();
+                listenToStatuses();
+            } else {
+                currentUser = null;
+                document.getElementById('authOverlay').style.display = 'flex';
+            }
+        });
+    };
+
+    // Firebase Data Synchronization
+    async function loadAndSyncUserData(uid) {
+        try {
+            const docRef = db.collection('users').doc(uid);
+            const doc = await docRef.get();
+            if (doc.exists) {
+                currentUser = doc.data();
+                currentUser.uid = uid;
+                const avatar = currentUser.avatar || "https://via.placeholder.com/150";
+                document.getElementById('currentAvatar').src = avatar;
+                document.getElementById('drawerProfileImg').src = avatar;
+                document.getElementById('profileUsernameInput').value = currentUser.username || "";
+                document.getElementById('profilePhoneInput').value = currentUser.phone || "";
+                renderChatList();
+            }
+        } catch(err) {
+            console.error("Sync data error:", err);
+        }
+    }
+
+    function listenToGlobalUsers() {
+        db.collection('users').onSnapshot(snapshot => {
+            registeredUsers = {};
+            snapshot.forEach(doc => {
+                registeredUsers[doc.data().username] = doc.data();
+            });
+            renderChatList();
+        });
+    }
+
+    function listenToStatuses() {
+        if (activeStatusesUnsubscribe) activeStatusesUnsubscribe();
+        activeStatusesUnsubscribe = db.collection('statuses').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+            statusList = [];
+            snapshot.forEach(doc => {
+                statusList.push({ id: doc.id, ...doc.data() });
+            });
+            renderStatuses();
+        });
+    }
+
+    // Helper Utilities
+    function formatWhatsAppText(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+            .replace(/_(.*?)_/g, '<em>$1</em>')
+            .replace(/~(.*?)~/g, '<del>$1</del>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (input.type === "password") {
+            input.type = "text";
+            btn.innerText = "🙈";
+        } else {
+            input.type = "password";
+            btn.innerText = "👁️";
+        }
+    }
+
+    function showCustomAlert(message, isConfirm = false, callback = null) {
+        document.getElementById('alertTitle').innerText = isConfirm ? "Confirmation" : "Notification";
+        document.getElementById('alertMessage').innerText = message;
+        document.getElementById('alertCancelBtn').style.display = isConfirm ? "inline-block" : "none";
+        document.getElementById('customAlertOverlay').classList.add('active');
+        alertCallback = callback;
+    }
+
+    function closeCustomAlert(result) {
+        document.getElementById('customAlertOverlay').classList.remove('active');
+        if (alertCallback) {
+            alertCallback(result);
+            alertCallback = null;
+        }
+    }
+
+    function toggleForgotPassModal(show) {
+        document.getElementById('forgotPassOverlay').classList.toggle('active', show);
+    }
+
+    function handlePasswordRecovery() {
+        const email = document.getElementById('recoveryEmail').value.trim();
+        if (!email) {
+            showCustomAlert("Please enter your account email address.");
+            return;
+        }
+        auth.sendPasswordResetEmail(email)
+            .then(() => {
+                toggleForgotPassModal(false);
+                showCustomAlert("Password reset link sent to your email!");
+            })
+            .catch(err => showCustomAlert(err.message));
+    }
+
+    function previewRegAvatar(e) {
+        const file = e.target.files[0];
+        if (file) {
+            regAvatarFile = file;
+            document.getElementById('regAvatarPreview').src = URL.createObjectURL(file);
+        }
+    }
+
+    // Auth & Settings Implementations
+    function toggleAuthMode() {
+        isRegisterMode = !isRegisterMode;
+        document.getElementById('authTitle').innerText = isRegisterMode ? "WhatsApp Register" : "WhatsApp Login";
+        document.getElementById('authSubmitBtn').innerText = isRegisterMode ? "Register" : "Log In";
+        document.getElementById('authToggleText').innerText = isRegisterMode ? "Already have an account? Log In" : "Need an account? Register";
+        document.getElementById('forgotPassLink').style.display = isRegisterMode ? "none" : "inline";
+        document.getElementById('registrationAvatarContainer').style.display = isRegisterMode ? "block" : "none";
+        document.getElementById('phoneInputGroup').style.display = isRegisterMode ? "block" : "none";
+    }
+
+    document.getElementById('authForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('authEmail').value.trim();
+        const user = document.getElementById('authUsername').value.trim();
+        const phone = document.getElementById('authPhone').value.trim();
+        const pass = document.getElementById('authPassword').value.trim();
+
+        if (isRegisterMode) {
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
+                let avatarUrl = `https://i.pravatar.cc/150?u=${encodeURIComponent(user)}`;
+
+                if (regAvatarFile) {
+                    const storageRef = storage.ref(`avatars/${userCredential.user.uid}`);
+                    await storageRef.put(regAvatarFile);
+                    avatarUrl = await storageRef.getDownloadURL();
+                }
+
+                const userData = {
+                    username: user,
+                    email: email,
+                    phone: phone || "",
+                    avatar: avatarUrl,
+                    contacts: [],
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await db.collection('users').doc(userCredential.user.uid).set(userData);
+            } catch (err) {
+                showCustomAlert(err.message);
+            }
+        } else {
+            try {
+                await auth.signInWithEmailAndPassword(email, pass);
+            } catch (err) {
+                showCustomAlert(err.message);
+            }
+        }
+    };
+
+    function logoutUser() {
+        auth.signOut().then(() => {
+            document.getElementById('profileDrawer').classList.remove('open');
+        });
+    }
+
+    function toggleDrawer() { document.getElementById('profileDrawer').classList.toggle('open'); }
+
+    /* Fixed Profile Photo Upload Function */
+    async function updateProfilePicture(e) {
+        const file = e.target.files[0];
+        const user = auth.currentUser;
+        if (!file) return;
+        if (!user) {
+            showCustomAlert("User is not authenticated.");
+            return;
+        }
+
+        try {
+            showCustomAlert("Uploading photo...");
+            const storageRef = storage.ref(`avatars/${user.uid}`);
+            const uploadTask = await storageRef.put(file);
+            const url = await uploadTask.ref.getDownloadURL();
+            
+            await db.collection('users').doc(user.uid).update({ avatar: url });
+            if (currentUser) currentUser.avatar = url;
+            
+            document.getElementById('currentAvatar').src = url;
+            document.getElementById('drawerProfileImg').src = url;
+            
+            closeCustomAlert(true);
+            showCustomAlert("Profile picture updated successfully!");
+        } catch (error) {
+            console.error("Error uploading profile photo: ", error);
+            showCustomAlert("Upload failed: " + error.message);
+        }
+    }
+
+    async function updateDisplayName() {
+        const newName = document.getElementById('profileUsernameInput').value.trim();
+        const user = auth.currentUser;
+        if (newName && user) {
+            await db.collection('users').doc(user.uid).update({ username: newName });
+            if (currentUser) currentUser.username = newName;
+            showCustomAlert("Display name updated!");
+        }
+    }
+
+    async function updatePhoneNumber() {
+        const newPhone = document.getElementById('profilePhoneInput').value.trim();
+        const user = auth.currentUser;
+        if (newPhone && user) {
+            await db.collection('users').doc(user.uid).update({ phone: newPhone });
+            if (currentUser) currentUser.phone = newPhone;
+            showCustomAlert("Phone number updated!");
+        }
+    }
+
+    function updatePassword() {
+        const pass = document.getElementById('newPasswordInput').value;
+        if (pass && auth.currentUser) {
+            auth.currentUser.updatePassword(pass)
+                .then(() => showCustomAlert('Password updated successfully!'))
+                .catch(err => showCustomAlert(err.message));
+        }
+    }
+
+    function toggleDarkMode(enabled) { document.body.classList.toggle('dark-theme', enabled); }
+    function changeChatWallpaper(color) { document.querySelector('.main-chat').style.backgroundColor = color; }
+    function changeFontSize(size) { document.documentElement.style.setProperty('--font-size-base', size); }
+    function toggleNotificationsSetting(enabled) { enableNotifications = enabled; }
+
+    // Device Contacts Sync using Web Contact Picker API
+    async function importDeviceContacts() {
+        if ('contacts' in navigator && 'ContactsManager' in window) {
+            try {
+                const props = ['name', 'tel'];
+                const contacts = await navigator.contacts.select(props, { multiple: true });
+                if (contacts && contacts.length > 0) {
+                    let addedCount = 0;
+                    contacts.forEach(c => {
+                        if (c.tel && c.tel.length > 0) {
+                            const rawPhone = c.tel[0].replace(/\s+/g, '');
+                            Object.keys(registeredUsers).forEach(u => {
+                                if (registeredUsers[u].phone && registeredUsers[u].phone.includes(rawPhone)) {
+                                    addFriendUsername(u);
+                                    addedCount++;
+                                }
+                            });
+                        }
+                    });
+                    showCustomAlert(`Synced device contacts! Added ${addedCount} matching registered users.`);
+                }
+            } catch (ex) {
+                showCustomAlert("Contacts access canceled or unsupported.");
+            }
+        } else {
+            showCustomAlert("Device Contact Picker API is not supported on this browser.");
+        }
+    }
+
+    /* Contacts Search & Discovery */
+    function toggleAddContactModal(show) {
+        document.getElementById('addContactOverlay').classList.toggle('active', show);
+        if (show) {
+            document.getElementById('contactNameInput').value = '';
+            searchUsersList('');
+        }
+    }
+
+    function searchUsersList(query) {
+        const container = document.getElementById('searchResultsContainer');
+        container.innerHTML = '';
+        if (!currentUser) return;
+
+        const usernames = Object.keys(registeredUsers).filter(u => 
+            u !== currentUser.username && 
+            (u.toLowerCase().includes(query.toLowerCase()) || (registeredUsers[u].phone && registeredUsers[u].phone.includes(query)))
+        );
+        
+        if (usernames.length === 0) {
+            container.innerHTML = `<div style="font-size:12px; color:var(--wa-text-muted); text-align:center; padding:10px;">No registered users found</div>`;
+            return;
+        }
+
+        usernames.forEach(u => {
+            const isAlreadyContact = currentUser.contacts && currentUser.contacts.includes(u);
+            container.innerHTML += `
+                <div class="search-user-card">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <img src="${registeredUsers[u].avatar}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
+                        <div>
+                            <div style="font-weight:600; font-size:14px;">${u}</div>
+                            <div style="font-size:10px; color:var(--wa-text-muted);">${registeredUsers[u].phone || ''}</div>
+                        </div>
+                    </div>
+                    <button class="modal-btn btn-confirm" style="padding:4px 8px; font-size:12px;" onclick="addFriendUsername('${u}')" ${isAlreadyContact ? 'disabled style="opacity:0.5"' : ''}>
+                        ${isAlreadyContact ? 'Added' : 'Add'}
+                    </button>
+                </div>
+            `;
+        });
+    }
+
+    async function addFriendUsername(name) {
+        if (registeredUsers[name] && auth.currentUser) {
+            if (!currentUser.contacts) currentUser.contacts = [];
+            if (!currentUser.contacts.includes(name)) {
+                currentUser.contacts.push(name);
+                await db.collection('users').doc(auth.currentUser.uid).update({ contacts: currentUser.contacts });
+                renderChatList();
+                showCustomAlert(`Contact "${name}" added!`);
+            }
+        }
+    }
+
+    // Status Features with Unlimited Cloud Media & Direct Recording
+    function toggleStatusModal(show) {
+        document.getElementById('statusOverlay').classList.toggle('active', show);
+        if (show) renderStatuses();
+    }
+
+    function renderStatuses() {
+        const list = document.getElementById('recentStatuses');
+        list.innerHTML = '';
+        if (currentUser) {
+            document.getElementById('myStatusAvatar').src = currentUser.avatar || "https://via.placeholder.com/150";
+        }
+        statusList.forEach(s => {
+            list.innerHTML += `
+                <div class="status-item" onclick="viewStatus('${s.id}')">
+                    <img src="${s.avatar}" class="status-avatar">
+                    <div>
+                        <div style="font-weight:600;">${s.name}</div>
+                        <div style="font-size:12px; color:var(--wa-text-muted);">${s.time || 'Recently'} • ${s.mediaType || 'Text'}</div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function viewStatus(statusId) {
+        activeStatusId = statusId;
+        const status = statusList.find(s => s.id === statusId);
+        if (!status) return;
+
+        document.getElementById('statusCardList').style.display = 'none';
+        document.getElementById('statusMainView').style.display = 'flex';
+        const display = document.getElementById('activeStatusDisplay');
+        
+        let mediaHTML = '';
+        if (status.mediaType === 'image') {
+            mediaHTML = `<img src="${status.mediaUrl}" class="status-media-display"><br>`;
+        } else if (status.mediaType === 'video') {
+            mediaHTML = `<video src="${status.mediaUrl}" class="status-media-display" controls autoplay></video><br>`;
+        } else if (status.mediaType === 'audio') {
+            mediaHTML = `<audio src="${status.mediaUrl}" controls style="margin-bottom:10px;"></audio><br>`;
+        }
+
+        display.innerHTML = `${mediaHTML}<div>${formatWhatsAppText(status.text)}</div><div style="font-size:12px; margin-top:8px; opacity:0.8;">— ${status.name}</div>`;
+        display.style.backgroundColor = status.bg || '#008069';
+
+        renderActiveStatusComments();
+    }
+
+    function renderActiveStatusComments() {
+        const status = statusList.find(s => s.id === activeStatusId);
+        const commentListContainer = document.getElementById('statusCommentList');
+        commentListContainer.innerHTML = '';
+        
+        if (status && status.comments) {
+            status.comments.forEach(c => {
+                commentListContainer.innerHTML += `
+                    <div class="comment-item">
+                        <div class="comment-author">${c.author}</div>
+                        <div>${formatWhatsAppText(c.text)}</div>
+                    </div>
+                `;
+            });
+            commentListContainer.scrollTop = commentListContainer.scrollHeight;
+        }
+    }
+
+    async function addStatusComment() {
+        const input = document.getElementById('statusCommentInput');
+        const text = input.value.trim();
+        if (!text || !activeStatusId || !currentUser) return;
+
+        const statusRef = db.collection('statuses').doc(activeStatusId);
+        const commentObj = {
+            author: currentUser.username,
+            text: text,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        await statusRef.update({
+            comments: firebase.firestore.FieldValue.arrayUnion(commentObj)
+        });
+
+        input.value = '';
+    }
+
+    function closeStatusViewer() {
+        activeStatusId = null;
+        document.getElementById('statusCardList').style.display = 'flex';
+        document.getElementById('statusMainView').style.display = 'none';
+    }
+
+    function toggleStatusEditor(show) {
+        document.getElementById('statusEditorOverlay').classList.toggle('active', show);
+        if (show) {
+            document.getElementById('statusInputText').value = '';
+            document.getElementById('statusMediaInput').value = '';
+            recordedStatusBlob = null;
+            document.getElementById('statusRecordPreview').style.display = 'none';
+        }
+    }
+
+    function selectStatusBg(color, el) {
+        selectedStatusBg = color;
+        document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    async function recordStatusMedia(type) {
+        try {
+            const constraints = type === 'video' ? { video: true, audio: true } : { audio: true };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            statusMediaRecorder = new MediaRecorder(stream);
+            statusMediaChunks = [];
+
+            statusMediaRecorder.ondataavailable = e => statusMediaChunks.push(e.data);
+            statusMediaRecorder.onstop = () => {
+                recordedStatusBlob = new Blob(statusMediaChunks, { type: type === 'video' ? 'video/mp4' : 'audio/mp3' });
+                const preview = document.getElementById('statusRecordPreview');
+                preview.src = URL.createObjectURL(recordedStatusBlob);
+                preview.style.display = 'block';
+                stream.getTracks().forEach(t => t.stop());
+            };
+
+            statusMediaRecorder.start();
+            showCustomAlert(`Recording ${type}... Click OK to stop recording after finished.`, false, () => {
+                if (statusMediaRecorder && statusMediaRecorder.state !== 'inactive') {
+                    statusMediaRecorder.stop();
+                }
+            });
+        } catch (err) {
+            showCustomAlert("Permission denied for recording media.");
+        }
+    }
+
+    async function submitStatusUpdate() {
+        const text = document.getElementById('statusInputText').value.trim();
+        const mediaFile = document.getElementById('statusMediaInput').files[0] || recordedStatusBlob;
+
+        if (!text && !mediaFile) {
+            showCustomAlert("Please enter text or attach media for status.");
+            return;
+        }
+
+        let mediaUrl = null;
+        let mediaType = 'text';
+
+        if (mediaFile) {
+            const isVideo = mediaFile.type.includes('video');
+            const isAudio = mediaFile.type.includes('audio');
+            mediaType = isVideo ? 'video' : (isAudio ? 'audio' : 'image');
+
+            const fileRef = storage.ref(`statuses/${Date.now()}_${currentUser.username}`);
+            await fileRef.put(mediaFile);
+            mediaUrl = await fileRef.getDownloadURL();
+        }
+
+        await db.collection('statuses').add({
+            name: currentUser.username,
+            avatar: currentUser.avatar,
+            text: text,
+            bg: selectedStatusBg,
+            mediaUrl: mediaUrl,
+            mediaType: mediaType,
+            comments: [],
+            time: "Just now",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        toggleStatusEditor(false);
+        showCustomAlert("Status posted successfully!");
+    }
+
+    /* Messaging Logic */
+    function getThreadKey(userA, userB) {
+        return [userA, userB].sort().join('_');
+    }
+
+    function renderChatList(filter = "") {
+        if (!currentUser) return;
+        const list = document.getElementById('chatList');
+        list.innerHTML = '';
+
+        const contactUsernames = currentUser.contacts || [];
+        const filtered = contactUsernames.filter(u => u.toLowerCase().includes(filter.toLowerCase()));
+        
+        filtered.forEach(u => {
+            const targetUser = registeredUsers[u] || { username: u, avatar: `https://i.pravatar.cc/150?u=${u}` };
+
+            list.innerHTML += `
+                <div class="chat-item ${u === activeContactUsername ? 'active' : ''}" onclick="selectContact('${u}')">
+                    <img src="${targetUser.avatar}" class="user-avatar">
+                    <div class="chat-details">
+                        <div class="chat-title"><span>${targetUser.username}</span></div>
+                        <div class="chat-preview"><span>Click to start chatting</span></div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function filterChats(query) { renderChatList(query); }
+
+    function selectContact(username) {
+        activeContactUsername = username;
+        const activeContact = registeredUsers[username] || { username: username, avatar: `https://i.pravatar.cc/150?u=${username}` };
+        
+        document.getElementById('activeChatName').innerText = activeContact.username;
+        document.getElementById('activeChatAvatar').src = activeContact.avatar;
+        document.getElementById('activeChatStatus').innerText = "online";
+        
+        document.getElementById('appContainer').classList.add('mobile-chat-active');
+        
+        listenToMessages(username);
+        renderChatList();
+    }
+
+    function listenToMessages(targetUsername) {
+        if (activeMessagesUnsubscribe) activeMessagesUnsubscribe();
+
+        const threadKey = getThreadKey(currentUser.username, targetUsername);
+        activeMessagesUnsubscribe = db.collection('chats').doc(threadKey).collection('messages')
+            .orderBy('timestamp', 'asc')
+            .onSnapshot(snapshot => {
+                const area = document.getElementById('messagesArea');
+                area.innerHTML = '';
+                
+                snapshot.forEach(doc => {
+                    const m = doc.data();
+                    let formattedText = formatWhatsAppText(m.text);
+                    let content = formattedText;
+                    if (m.type === 'image') content = `<img src="${m.mediaUrl}"><div>${formattedText}</div>`;
+                    if (m.type === 'video') content = `<video src="${m.mediaUrl}" controls></video><div>${formattedText}</div>`;
+                    if (m.type === 'audio') content = `<audio src="${m.mediaUrl}" controls></audio>`;
+
+                    const isMe = m.sender === currentUser.username;
+                    const statusTicks = isMe ? `<span class="message-status seen" title="Delivered">✓✓</span>` : '';
+
+                    area.innerHTML += `
+                        <div class="message ${isMe ? 'outgoing' : 'incoming'}">
+                            ${content}
+                            <div class="message-meta">
+                                <span>${m.time || ''}</span>
+                                ${statusTicks}
+                            </div>
+                        </div>
+                    `;
+                });
+                area.scrollTop = area.scrollHeight;
+            });
+    }
+
+    function closeMobileChat() {
+        document.getElementById('appContainer').classList.remove('mobile-chat-active');
+        activeContactUsername = null;
+    }
+
+    function handleKeyPress(e) {
+        if (e.key === 'Enter' && document.getElementById('enterSendToggle').checked) {
+            sendMessage();
+        }
+    }
+
+    async function sendMessage() {
+        if (!activeContactUsername || !currentUser) return;
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const threadKey = getThreadKey(currentUser.username, activeContactUsername);
+
+        await db.collection('chats').doc(threadKey).collection('messages').add({
+            sender: currentUser.username,
+            receiver: activeContactUsername,
+            text: text,
+            time: time,
+            type: 'text',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        input.value = '';
+        document.getElementById('emojiPicker').classList.remove('open');
+    }
+
+    async function sendMedia(e) {
+        if (!activeContactUsername || !currentUser) return;
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const threadKey = getThreadKey(currentUser.username, activeContactUsername);
+
+        const isVideo = file.type.startsWith('video');
+        const isAudio = file.type.startsWith('audio');
+        const mediaType = isVideo ? 'video' : (isAudio ? 'audio' : 'image');
+
+        const fileRef = storage.ref(`chat_media/${Date.now()}_${file.name}`);
+        await fileRef.put(file);
+        const url = await fileRef.getDownloadURL();
+
+        await db.collection('chats').doc(threadKey).collection('messages').add({
+            sender: currentUser.username,
+            receiver: activeContactUsername,
+            text: '',
+            time: time,
+            type: mediaType,
+            mediaUrl: url,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
+    async function toggleRecordVoice() {
+        if (!activeContactUsername || !currentUser) return;
+        const micBtn = document.getElementById('micBtn');
+
+        if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    const fileRef = storage.ref(`chat_media/${Date.now()}_voice.mp3`);
+                    await fileRef.put(audioBlob);
+                    const url = await fileRef.getDownloadURL();
+
+                    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const threadKey = getThreadKey(currentUser.username, activeContactUsername);
+
+                    await db.collection('chats').doc(threadKey).collection('messages').add({
+                        sender: currentUser.username,
+                        receiver: activeContactUsername,
+                        time: time,
+                        type: 'audio',
+                        mediaUrl: url,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                };
+
+                mediaRecorder.start();
+                micBtn.style.color = 'red';
+            } catch (err) { showCustomAlert('Microphone access denied.'); }
+        } else {
+            mediaRecorder.stop();
+            micBtn.style.color = 'var(--wa-text-muted)';
+        }
+    }
+
+    /* Live Calls & Peer Setup */
+    async function startCall(type) {
+        if (!activeContactUsername) return;
+        document.getElementById('callTargetName').innerText = activeContactUsername;
+        document.getElementById('callStatusText').innerText = `Ringing (${type})...`;
+        document.getElementById('callModal').classList.add('active');
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: type === 'video',
+                audio: true
+            });
+            document.getElementById('localVideo').srcObject = localStream;
+            document.getElementById('remoteVideo').srcObject = localStream;
+            document.getElementById('callStatusText').innerText = "Connected";
+        } catch (err) {
+            showCustomAlert('Camera/Microphone permissions required for live calling.');
+            endCall();
+        }
+    }
+
+    function endCall() {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        document.getElementById('callModal').classList.remove('active');
+    }
+
+    function requestNotificationPermission() {
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+    }
 
     function initEmojiPicker() {
         const picker = document.getElementById('emojiPicker');
@@ -459,421 +1314,22 @@ const firebaseConfig = {
         });
     }
 
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            const userSnapshot = await get(ref(db, `users/${user.uid}`));
-            if (userSnapshot.exists()) {
-                currentUser = userSnapshot.val();
-                currentUser.uid = user.uid;
-                document.getElementById('authOverlay').style.display = 'none';
-                loadUserData();
-                listenToGlobalUsers();
-                listenToStatuses();
-            }
-        } else {
-            currentUser = null;
-            document.getElementById('authOverlay').style.display = 'flex';
-        }
-    });
+    function toggleEmojiPicker() { document.getElementById('emojiPicker').classList.toggle('open'); }
 
-    function listenToGlobalUsers() {
-        onValue(ref(db, 'users'), (snapshot) => {
-            if (snapshot.exists()) {
-                registeredUsers = snapshot.val();
-                renderChatList();
-            }
-        });
+    function backupData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ user: currentUser }));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", "whatsapp_cloud_user_backup.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
     }
 
-    function listenToStatuses() {
-        onValue(ref(db, 'statuses'), (snapshot) => {
-            statusList = [];
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                Object.keys(data).forEach(key => {
-                    statusList.push({ id: key, ...data[key] });
-                });
-                statusList.reverse();
-            }
-            renderStatuses();
-        });
+    function exportChatText() {
+        if (!activeContactUsername) return;
+        showCustomAlert("Cloud chat active. Highlight chat or download logs directly.");
     }
-
-    function compressImage(file, maxWidth, maxHeight, quality, callback) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                let width = img.width;
-                let height = img.height;
-                if (width > height) {
-                    if (width > maxWidth) {
-                        height = Math.round((height * maxWidth) / width);
-                        width = maxWidth;
-                    }
-                } else {
-                    if (height > maxHeight) {
-                        width = Math.round((width * maxHeight) / height);
-                        height = maxHeight;
-                    }
-                }
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                callback(canvas.toDataURL('image/jpeg', quality));
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-
-    function formatWhatsAppText(text) {
-        if (!text) return '';
-        return text
-            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-            .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
-            .replace(/_(.*?)_/g, '<em>$1</em>')
-            .replace(/~(.*?)~/g, '<del>$1</del>')
-            .replace(/\n/g, '<br>');
-    }
-
-    window.toggleAuthMode = () => {
-        isRegisterMode = !isRegisterMode;
-        document.getElementById('authTitle').innerText = isRegisterMode ? "WhatsApp Register" : "WhatsApp Login";
-        document.getElementById('authSubmitBtn').innerText = isRegisterMode ? "Register" : "Log In";
-        document.getElementById('authToggleText').innerText = isRegisterMode ? "Already have an account? Log In" : "Need an account? Register";
-        document.getElementById('registrationAvatarContainer').style.display = isRegisterMode ? "block" : "none";
-    };
-
-    document.getElementById('authForm').onsubmit = async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('authEmail').value.trim();
-        const user = document.getElementById('authUsername').value.trim();
-        const pass = document.getElementById('authPassword').value.trim();
-
-        if (isRegisterMode) {
-            try {
-                const res = await createUserWithEmailAndPassword(auth, email, pass);
-                const avatarImg = regAvatarBase64 || `https://i.pravatar.cc/150?u=${encodeURIComponent(user)}`;
-                const userData = { username: user, email, avatar: avatarImg, contacts: {} };
-                await set(ref(db, `users/${res.user.uid}`), userData);
-            } catch (err) {
-                alert("Registration Error: " + err.message);
-            }
-        } else {
-            try {
-                await signInWithEmailAndPassword(auth, email, pass);
-            } catch (err) {
-                alert("Login Error: " + err.message);
-            }
-        }
-    };
-
-    window.logoutUser = () => {
-        signOut(auth);
-        document.getElementById('profileDrawer').classList.remove('open');
-    };
-
-    function loadUserData() {
-        document.getElementById('currentAvatar').src = currentUser.avatar;
-        document.getElementById('drawerProfileImg').src = currentUser.avatar;
-        document.getElementById('profileUsernameInput').value = currentUser.username;
-    }
-
-    window.toggleDrawer = () => { document.getElementById('profileDrawer').classList.toggle('open'); };
-
-    window.updateProfilePicture = (e) => {
-        const file = e.target.files[0];
-        if (file && currentUser) {
-            compressImage(file, 200, 200, 0.7, async (compressedData) => {
-                currentUser.avatar = compressedData;
-                await update(ref(db, `users/${currentUser.uid}`), { avatar: compressedData });
-                loadUserData();
-            });
-        }
-    };
-
-    function getThreadKey(userA, userB) {
-        return [userA, userB].sort().join('_');
-    }
-
-    window.renderChatList = (filter = "") => {
-        if (!currentUser) return;
-        const list = document.getElementById('chatList');
-        list.innerHTML = '';
-
-        const myContacts = currentUser.contacts || {};
-        const contactUsernames = Object.keys(myContacts);
-        const filtered = contactUsernames.filter(u => u.toLowerCase().includes(filter.toLowerCase()));
-
-        filtered.forEach(u => {
-            const targetUser = Object.values(registeredUsers).find(user => user.username === u) || { username: u, avatar: `https://i.pravatar.cc/150?u=${u}` };
-            list.innerHTML += `
-                <div class="chat-item ${u === activeContactUsername ? 'active' : ''}" onclick="selectContact('${u}')">
-                    <img src="${targetUser.avatar}" class="user-avatar">
-                    <div class="chat-details">
-                        <div class="chat-title"><span>${targetUser.username}</span></div>
-                        <div class="chat-preview"><span>Click to open chat</span></div>
-                    </div>
-                </div>
-            `;
-        });
-    };
-
-    window.selectContact = (username) => {
-        activeContactUsername = username;
-        const targetUser = Object.values(registeredUsers).find(u => u.username === username) || { username, avatar: `https://i.pravatar.cc/150?u=${username}` };
-
-        document.getElementById('activeChatName').innerText = targetUser.username;
-        document.getElementById('activeChatAvatar').src = targetUser.avatar;
-        document.getElementById('appContainer').classList.add('mobile-chat-active');
-
-        renderChatList();
-        listenToMessages();
-    };
-
-    function listenToMessages() {
-        if (!activeContactUsername || !currentUser) return;
-        const threadKey = getThreadKey(currentUser.username, activeContactUsername);
-        const messagesRef = ref(db, `messages/${threadKey}`);
-
-        onValue(messagesRef, (snapshot) => {
-            const area = document.getElementById('messagesArea');
-            area.innerHTML = '';
-            if (snapshot.exists()) {
-                const msgs = snapshot.val();
-                Object.keys(msgs).forEach(key => {
-                    const m = msgs[key];
-                    let formattedText = formatWhatsAppText(m.text);
-                    let content = formattedText;
-                    if (m.type === 'image') content = `<img src="${m.mediaUrl}"><div>${formattedText}</div>`;
-                    if (m.type === 'video') content = `<video src="${m.mediaUrl}" controls></video><div>${formattedText}</div>`;
-                    if (m.type === 'audio') content = `<audio src="${m.mediaUrl}" controls></audio>`;
-
-                    const isMe = m.sender === currentUser.username;
-                    const statusTicks = isMe ? (m.seen ? `<span class="message-status seen" title="Seen">✓✓</span>` : `<span class="message-status" title="Sent">✓</span>`) : '';
-
-                    area.innerHTML += `
-                        <div class="message ${isMe ? 'outgoing' : 'incoming'}">
-                            ${content}
-                            <div class="message-meta">
-                                <span>${m.time}</span>
-                                ${statusTicks}
-                            </div>
-                        </div>
-                    `;
-                    if (m.sender !== currentUser.username && !m.seen) {
-                        update(ref(db, `messages/${threadKey}/${key}`), { seen: true });
-                    }
-                });
-                area.scrollTop = area.scrollHeight;
-            }
-        });
-    }
-
-    window.sendMessage = () => {
-        if (!activeContactUsername || !currentUser) return;
-        const input = document.getElementById('messageInput');
-        const text = input.value.trim();
-        if (!text) return;
-
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const threadKey = getThreadKey(currentUser.username, activeContactUsername);
-
-        push(ref(db, `messages/${threadKey}`), {
-            sender: currentUser.username,
-            receiver: activeContactUsername,
-            text: text,
-            time: time,
-            type: 'text',
-            seen: false
-        });
-
-        input.value = '';
-    };
-
-    window.sendMedia = (e) => {
-        if (!activeContactUsername || !currentUser) return;
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const threadKey = getThreadKey(currentUser.username, activeContactUsername);
-        const isVideo = file.type.startsWith('video');
-
-        if (isVideo) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                push(ref(db, `messages/${threadKey}`), {
-                    sender: currentUser.username,
-                    receiver: activeContactUsername,
-                    text: '',
-                    time,
-                    type: 'video',
-                    mediaUrl: event.target.result,
-                    seen: false
-                });
-            };
-            reader.readAsDataURL(file);
-        } else {
-            compressImage(file, 800, 800, 0.7, (compressedData) => {
-                push(ref(db, `messages/${threadKey}`), {
-                    sender: currentUser.username,
-                    receiver: activeContactUsername,
-                    text: '',
-                    time,
-                    type: 'image',
-                    mediaUrl: compressedData,
-                    seen: false
-                });
-            });
-        }
-    };
-
-    window.toggleAddContactModal = (show) => {
-        document.getElementById('addContactOverlay').classList.toggle('active', show);
-        if (show) searchUsersList('');
-    };
-
-    window.searchUsersList = (queryStr) => {
-        const container = document.getElementById('searchResultsContainer');
-        container.innerHTML = '';
-        const allUsers = Object.values(registeredUsers);
-
-        const filtered = allUsers.filter(u => u.username !== currentUser.username && u.username.toLowerCase().includes(queryStr.toLowerCase()));
-
-        if (filtered.length === 0) {
-            container.innerHTML = `<div style="font-size:12px; color:var(--wa-text-muted); text-align:center; padding:10px;">No registered users found</div>`;
-            return;
-        }
-
-        filtered.forEach(u => {
-            const isContact = currentUser.contacts && currentUser.contacts[u.username];
-            container.innerHTML += `
-                <div class="search-user-card">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <img src="${u.avatar}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
-                        <span style="font-weight:600; font-size:14px;">${u.username}</span>
-                    </div>
-                    <button class="modal-btn btn-confirm" style="padding:4px 8px; font-size:12px;" onclick="addFriendUsername('${u.username}')" ${isContact ? 'disabled style="opacity:0.5"' : ''}>
-                        ${isContact ? 'Added' : 'Add'}
-                    </button>
-                </div>
-            `;
-        });
-    };
-
-    window.addFriendUsername = async (name) => {
-        if (!currentUser.contacts) currentUser.contacts = {};
-        currentUser.contacts[name] = true;
-        await update(ref(db, `users/${currentUser.uid}/contacts`), currentUser.contacts);
-        toggleAddContactModal(false);
-        renderChatList();
-        selectContact(name);
-    };
-
-    window.toggleStatusModal = (show) => {
-        document.getElementById('statusOverlay').classList.toggle('active', show);
-        if (show) renderStatuses();
-    };
-
-    function renderStatuses() {
-        const list = document.getElementById('recentStatuses');
-        list.innerHTML = '';
-        if (currentUser) document.getElementById('myStatusAvatar').src = currentUser.avatar;
-
-        statusList.forEach(s => {
-            list.innerHTML += `
-                <div class="status-item" onclick="viewStatus('${s.id}')">
-                    <img src="${s.avatar}" class="status-avatar">
-                    <div>
-                        <div style="font-weight:600;">${s.name}</div>
-                        <div style="font-size:12px; color:var(--wa-text-muted);">${s.time} • ${s.mediaType || 'Text'}</div>
-                    </div>
-                </div>
-            `;
-        });
-    }
-
-    window.viewStatus = (statusId) => {
-        activeStatusId = statusId;
-        const status = statusList.find(s => s.id === statusId);
-        if (!status) return;
-
-        document.getElementById('statusCardList').style.display = 'none';
-        document.getElementById('statusMainView').style.display = 'flex';
-        const display = document.getElementById('activeStatusDisplay');
-
-        let mediaHTML = '';
-        if (status.mediaType === 'image') mediaHTML = `<img src="${status.mediaUrl}" class="status-media-display"><br>`;
-        if (status.mediaType === 'video') mediaHTML = `<video src="${status.mediaUrl}" class="status-media-display" controls autoplay></video><br>`;
-
-        display.innerHTML = `${mediaHTML}<div>${formatWhatsAppText(status.text)}</div><div style="font-size:12px; margin-top:8px; opacity:0.8;">— ${status.name}</div>`;
-        display.style.backgroundColor = status.bg || '#008069';
-    };
-
-    window.closeStatusViewer = () => {
-        activeStatusId = null;
-        document.getElementById('statusCardList').style.display = 'flex';
-        document.getElementById('statusMainView').style.display = 'none';
-    };
-
-    window.toggleStatusEditor = (show) => {
-        document.getElementById('statusEditorOverlay').classList.toggle('active', show);
-    };
-
-    window.selectStatusBg = (color, el) => {
-        selectedStatusBg = color;
-        document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('selected'));
-        el.classList.add('selected');
-    };
-
-    window.submitStatusUpdate = () => {
-        const text = document.getElementById('statusInputText').value.trim();
-        const mediaFile = document.getElementById('statusMediaInput').files[0];
-
-        const postStatus = (mediaUrl = null, mediaType = 'text') => {
-            push(ref(db, 'statuses'), {
-                name: currentUser.username,
-                avatar: currentUser.avatar,
-                text: text,
-                bg: selectedStatusBg,
-                mediaUrl: mediaUrl,
-                mediaType: mediaType,
-                time: "Just now"
-            });
-            toggleStatusEditor(false);
-        };
-
-        if (mediaFile) {
-            const isVideo = mediaFile.type.startsWith('video');
-            if (isVideo) {
-                const reader = new FileReader();
-                reader.onload = (e) => postStatus(e.target.result, 'video');
-                reader.readAsDataURL(mediaFile);
-            } else {
-                compressImage(mediaFile, 600, 600, 0.7, (compressedData) => postStatus(compressedData, 'image'));
-            }
-        } else {
-            postStatus();
-        }
-    };
-
-    window.togglePasswordVisibility = (inputId, btn) => {
-        const input = document.getElementById(inputId);
-        input.type = input.type === "password" ? "text" : "password";
-        btn.innerText = input.type === "password" ? "👁️" : "🙈";
-    };
-
-    window.closeCustomAlert = () => { document.getElementById('customAlertOverlay').classList.remove('active'); };
-    window.toggleEmojiPicker = () => { document.getElementById('emojiPicker').classList.toggle('open'); };
-    window.toggleDarkMode = (enabled) => { document.body.classList.toggle('dark-theme', enabled); };
-    window.changeChatWallpaper = (color) => { document.querySelector('.main-chat').style.backgroundColor = color; };
-    window.closeMobileChat = () => { document.getElementById('appContainer').classList.remove('mobile-chat-active'); activeContactUsername = null; };
-
-    initEmojiPicker();
 </script>
 </body>
 </html>
