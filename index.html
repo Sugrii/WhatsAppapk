@@ -490,6 +490,53 @@
     let selectedStatusBg = '#008069';
     let regAvatarBase64 = null;
 
+    // Helper to safely write to localStorage without crashing on QuotaExceededError
+    function safeSetItem(key, value) {
+        try {
+            localStorage.setItem(key, value);
+            return true;
+        } catch (e) {
+            console.error("Storage quota exceeded!", e);
+            showCustomAlert("Storage limit reached! Please clear old chat history or use smaller images.");
+            return false;
+        }
+    }
+
+    // Helper to compress image size to prevent exceeding localStorage limits
+    function compressImage(file, maxWidth, maxHeight, quality, callback) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                callback(dataUrl);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
     let registeredUsers = JSON.parse(localStorage.getItem('wa_all_registered_users')) || {};
     let statusList = JSON.parse(localStorage.getItem('wa_statuses')) || [];
     let allGlobalMessages = JSON.parse(localStorage.getItem('wa_global_messages')) || {};
@@ -616,7 +663,7 @@
         }
 
         registeredUsers[user].password = newPass;
-        localStorage.setItem('wa_all_registered_users', JSON.stringify(registeredUsers));
+        safeSetItem('wa_all_registered_users', JSON.stringify(registeredUsers));
         toggleForgotPassModal(false);
         showCustomAlert("Password recovered and updated successfully! You can now log in.");
     }
@@ -624,12 +671,10 @@
     function previewRegAvatar(e) {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                regAvatarBase64 = event.target.result;
+            compressImage(file, 200, 200, 0.7, (compressedData) => {
+                regAvatarBase64 = compressedData;
                 document.getElementById('regAvatarPreview').src = regAvatarBase64;
-            };
-            reader.readAsDataURL(file);
+            });
         }
     }
 
@@ -711,7 +756,7 @@
                 text: text,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             });
-            localStorage.setItem('wa_statuses', JSON.stringify(statusList));
+            safeSetItem('wa_statuses', JSON.stringify(statusList));
             input.value = '';
             renderActiveStatusComments();
             broadcastChange('STATUS_UPDATE', {});
@@ -759,18 +804,25 @@
                 comments: [],
                 time: "Just now"
             });
-            localStorage.setItem('wa_statuses', JSON.stringify(statusList));
-            toggleStatusEditor(false);
-            renderStatuses();
-            broadcastChange('STATUS_UPDATE', {});
-            showCustomAlert("Status posted successfully!");
+            if (safeSetItem('wa_statuses', JSON.stringify(statusList))) {
+                toggleStatusEditor(false);
+                renderStatuses();
+                broadcastChange('STATUS_UPDATE', {});
+                showCustomAlert("Status posted successfully!");
+            }
         };
 
         if (mediaFile) {
-            const reader = new FileReader();
             const isVideo = mediaFile.type.startsWith('video');
-            reader.onload = (e) => createStatusObj(e.target.result, isVideo ? 'video' : 'image');
-            reader.readAsDataURL(mediaFile);
+            if (isVideo) {
+                const reader = new FileReader();
+                reader.onload = (e) => createStatusObj(e.target.result, 'video');
+                reader.readAsDataURL(mediaFile);
+            } else {
+                compressImage(mediaFile, 600, 600, 0.7, (compressedData) => {
+                    createStatusObj(compressedData, 'image');
+                });
+            }
         } else {
             createStatusObj();
         }
@@ -782,7 +834,7 @@
         syncDataFromStorage();
         let myContacts = currentUser.contacts || [];
         currentUser.contacts = myContacts;
-        localStorage.setItem('wa_user', JSON.stringify(currentUser));
+        safeSetItem('wa_user', JSON.stringify(currentUser));
     }
 
     function toggleAddContactModal(show) {
@@ -827,9 +879,9 @@
             if (!currentUser.contacts) currentUser.contacts = [];
             if (!currentUser.contacts.includes(name)) {
                 currentUser.contacts.push(name);
-                localStorage.setItem('wa_user', JSON.stringify(currentUser));
+                safeSetItem('wa_user', JSON.stringify(currentUser));
                 registeredUsers[currentUser.username] = currentUser;
-                localStorage.setItem('wa_all_registered_users', JSON.stringify(registeredUsers));
+                safeSetItem('wa_all_registered_users', JSON.stringify(registeredUsers));
             }
             toggleAddContactModal(false);
             renderChatList();
@@ -891,9 +943,11 @@
             currentUser = { username: user, password: pass, avatar: avatarImg, contacts: [] };
             registeredUsers[user] = currentUser;
             
-            localStorage.setItem('wa_all_registered_users', JSON.stringify(registeredUsers));
-            localStorage.setItem('wa_user', JSON.stringify(currentUser));
+            const savedUsers = safeSetItem('wa_all_registered_users', JSON.stringify(registeredUsers));
+            const savedUser = safeSetItem('wa_user', JSON.stringify(currentUser));
             
+            if (!savedUsers || !savedUser) return;
+
             broadcastChange('NEW_USER', { username: user });
             syncRegisteredToContacts();
         } else {
@@ -902,7 +956,7 @@
                 return;
             }
             currentUser = registeredUsers[user];
-            localStorage.setItem('wa_user', JSON.stringify(currentUser));
+            safeSetItem('wa_user', JSON.stringify(currentUser));
             syncRegisteredToContacts();
         }
 
@@ -929,17 +983,15 @@
     function updateProfilePicture(e) {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                currentUser.avatar = event.target.result;
-                localStorage.setItem('wa_user', JSON.stringify(currentUser));
+            compressImage(file, 200, 200, 0.7, (compressedData) => {
+                currentUser.avatar = compressedData;
+                safeSetItem('wa_user', JSON.stringify(currentUser));
                 registeredUsers[currentUser.username] = currentUser;
-                localStorage.setItem('wa_all_registered_users', JSON.stringify(registeredUsers));
+                safeSetItem('wa_all_registered_users', JSON.stringify(registeredUsers));
                 loadUserData();
                 renderChatList();
                 broadcastChange('USER_UPDATED', { username: currentUser.username });
-            };
-            reader.readAsDataURL(file);
+            });
         }
     }
 
@@ -947,9 +999,9 @@
         const pass = document.getElementById('newPasswordInput').value;
         if (pass) {
             currentUser.password = pass;
-            localStorage.setItem('wa_user', JSON.stringify(currentUser));
+            safeSetItem('wa_user', JSON.stringify(currentUser));
             registeredUsers[currentUser.username] = currentUser;
-            localStorage.setItem('wa_all_registered_users', JSON.stringify(registeredUsers));
+            safeSetItem('wa_all_registered_users', JSON.stringify(registeredUsers));
             showCustomAlert('Password updated successfully!');
         }
     }
@@ -963,7 +1015,7 @@
         showCustomAlert('Are you sure you want to clear all chat messages?', true, (confirmed) => {
             if (confirmed) {
                 allGlobalMessages = {};
-                localStorage.setItem('wa_global_messages', JSON.stringify(allGlobalMessages));
+                safeSetItem('wa_global_messages', JSON.stringify(allGlobalMessages));
                 renderChatList();
                 renderMessages();
                 broadcastChange('NEW_MESSAGE', {});
@@ -990,7 +1042,7 @@
                 const parsed = JSON.parse(jsonStr);
                 if (parsed.messages) {
                     allGlobalMessages = parsed.messages;
-                    localStorage.setItem('wa_global_messages', JSON.stringify(allGlobalMessages));
+                    safeSetItem('wa_global_messages', JSON.stringify(allGlobalMessages));
                     renderChatList();
                     renderMessages();
                     showCustomAlert("Data restored successfully!");
@@ -1066,7 +1118,7 @@
 
         if (updated) {
             allGlobalMessages[threadKey] = currentMsgs;
-            localStorage.setItem('wa_global_messages', JSON.stringify(allGlobalMessages));
+            safeSetItem('wa_global_messages', JSON.stringify(allGlobalMessages));
             broadcastChange('MESSAGE_READ', { threadKey });
         }
     }
@@ -1148,29 +1200,45 @@
         const file = e.target.files[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        const isVideo = file.type.startsWith('video');
-        
-        reader.onload = (event) => {
-            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const threadKey = getThreadKey(currentUser.username, activeContactUsername);
-            if (!allGlobalMessages[threadKey]) allGlobalMessages[threadKey] = [];
-            
-            const messageData = {
-                sender: currentUser.username,
-                receiver: activeContactUsername,
-                text: '',
-                time,
-                type: isVideo ? 'video' : 'image',
-                mediaUrl: event.target.result,
-                seen: false
-            };
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const threadKey = getThreadKey(currentUser.username, activeContactUsername);
+        if (!allGlobalMessages[threadKey]) allGlobalMessages[threadKey] = [];
 
-            allGlobalMessages[threadKey].push(messageData);
-            saveAndRenderMessages();
-            broadcastChange('NEW_MESSAGE', messageData);
-        };
-        reader.readAsDataURL(file);
+        const isVideo = file.type.startsWith('video');
+
+        if (isVideo) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const messageData = {
+                    sender: currentUser.username,
+                    receiver: activeContactUsername,
+                    text: '',
+                    time,
+                    type: 'video',
+                    mediaUrl: event.target.result,
+                    seen: false
+                };
+                allGlobalMessages[threadKey].push(messageData);
+                saveAndRenderMessages();
+                broadcastChange('NEW_MESSAGE', messageData);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            compressImage(file, 800, 800, 0.7, (compressedData) => {
+                const messageData = {
+                    sender: currentUser.username,
+                    receiver: activeContactUsername,
+                    text: '',
+                    time,
+                    type: 'image',
+                    mediaUrl: compressedData,
+                    seen: false
+                };
+                allGlobalMessages[threadKey].push(messageData);
+                saveAndRenderMessages();
+                broadcastChange('NEW_MESSAGE', messageData);
+            });
+        }
     }
 
     async function toggleRecordVoice() {
@@ -1214,7 +1282,7 @@
     }
 
     function saveAndRenderMessages() {
-        localStorage.setItem('wa_global_messages', JSON.stringify(allGlobalMessages));
+        safeSetItem('wa_global_messages', JSON.stringify(allGlobalMessages));
         renderChatList();
         renderMessages();
     }
